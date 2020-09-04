@@ -106,7 +106,7 @@ public class NewGym {
         JSONArray  observ = reply.getJSONArray("observation");
         setStepResponse(observ, stepResponse);
 
-        stepResponse.getReward().putScalar(0, reply.getDouble("reward"));
+        stepResponse.setReward(reply.getDouble("reward"));
         stepResponse.setDone(reply.getBoolean("done"));
         stepResponse.setInfo(reply.getJSONObject("info"));
 
@@ -143,7 +143,7 @@ public class NewGym {
     {
         if (observationStyle == ObservationStyle.discreet){
 
-            INDArray newObs = Nd4j.zeros(arr.length());
+            INDArray newObs = Nd4j.zeros(1, arr.length());
 
 
             for (int i = 0; i < arr.length(); i++) {
@@ -240,8 +240,8 @@ public class NewGym {
             return reward;
         }
 
-        public void setReward(INDArray reward) {
-            this.reward = reward;
+        public void setReward(double reward) {
+            this.reward.putScalar(0, reward);
         }
 
         public boolean isDone() {
