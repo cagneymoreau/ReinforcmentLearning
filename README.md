@@ -7,7 +7,7 @@ So I made a gym server fork and this repo to try some RL myself.
 
 Easy cartpole experiments with no optimization
 1) DDQN
-[DDQN Results](assets/ddqn_cartpole.bmp)
+![DDQN Results](assets/ddqn_cartpole.bmp)
 2) Vanilla Policy gradient
 
 3) Actor Critic
