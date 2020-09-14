@@ -1,5 +1,7 @@
 package Examples;
 
+import DL4JSupport.Display;
+import DL4JSupport.FileManager;
 import Enviroment.NewGym;
 import org.apache.commons.math3.distribution.EnumeratedIntegerDistribution;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
@@ -98,6 +100,8 @@ public class VanillaPolicyGradient {
 
     private static String save = "D:\\Dropbox\\Apps\\RL\\";
     private static String name = "VPG_CartPole.dl4j";
+    private static String benchmark = "vpg_bench.csv";
+
     private static double gamma = .99; //discount rate
     int totalActions = 0;
     int stateSpace = 0;
@@ -118,7 +122,10 @@ public class VanillaPolicyGradient {
 
         graph =  vpg.train(1000000, graph);
 
-        vpg.test(graph);
+        Display.plotSimpleSingle(save+benchmark, "VPG CARTPOLE");
+
+
+       // vpg.test(graph);
 
     }
 
@@ -145,8 +152,13 @@ public class VanillaPolicyGradient {
             graph = getVPGNetwork(stateSpace, totalActions);
         }
 
+        //benchmark stuff
+        int framecount = 0;
+        ArrayList<Double>  rewardEarned = new ArrayList<>();
+        ArrayList<Double>  framesList = new ArrayList<>();
 
         for (int i = 0; i < epoch; i++) {
+
 
             int cumReward = 0;
             boolean done = false;
@@ -172,13 +184,22 @@ public class VanillaPolicyGradient {
 
             done = stepResponse.isDone();
             oldObs = stepResponse.getObservation();
+            framecount++;
             }
 
             fit(graph, stateLs, actionLs, rewardLs);
 
+            framesList.add((double) framecount);
+            rewardEarned.add((double) cumReward);
             System.out.println("Reward: " + cumReward);
+            if (cumReward == 500) break;
             //saveNet(graph);
         }
+
+        ArrayList<ArrayList<Double>> lll = new ArrayList<>();
+        lll.add(framesList);
+        lll.add(rewardEarned);
+        FileManager.saveBenchMark(lll, save + benchmark);
 
         return graph;
     }
@@ -359,6 +380,44 @@ public class VanillaPolicyGradient {
         }
     }
 
+    class CustomLossEntropy implements ILossFunction {
+
+
+        @Override
+        public double computeScore(INDArray labels, INDArray preOutput, IActivation activationFn, INDArray mask, boolean average) {
+            INDArray output = activationFn.getActivation(preOutput.dup(), true).addi(1e-5); //no zero for diff
+            INDArray logOut = Transforms.log(output, true);
+
+            return 0;
+        }
+
+        @Override
+        public INDArray computeScoreArray(INDArray labels, INDArray preOutput, IActivation activationFn, INDArray mask) {
+            return null;
+        }
+
+        @Override
+        public INDArray computeGradient(INDArray labels, INDArray preOutput, IActivation activationFn, INDArray mask) {
+            INDArray output = activationFn.getActivation(preOutput.dup(), true).add(1e-5); //putput without zero
+            INDArray logOut = Transforms.log(output, true); //lnpi(a|s)
+            INDArray entropy = (output.mul(logOut)).mul(.01);
+            INDArray loss = logOut.mul(labels).add(entropy); // -R(t) * logout
+
+            INDArray gradient = activationFn.backprop(preOutput, loss).getFirst();
+
+            return gradient;
+        }
+
+        @Override
+        public Pair<Double, INDArray> computeGradientAndScore(INDArray labels, INDArray preOutput, IActivation activationFn, INDArray mask, boolean average) {
+            return null;
+        }
+
+        @Override
+        public String name() {
+            return null;
+        }
+    }
 
 
 }

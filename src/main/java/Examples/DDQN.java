@@ -1,5 +1,7 @@
 package Examples;
 
+import DL4JSupport.Display;
+import DL4JSupport.FileManager;
 import DL4JSupport.ImageSaver;
 import Enviroment.NewGym;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
@@ -20,6 +22,7 @@ import org.nd4j.linalg.lossfunctions.LossFunctions;
 
 import javax.swing.*;
 import java.io.File;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -71,9 +74,12 @@ public class DDQN {
     private static String game = "CartPole-v1";
     private static String save = "D:\\Dropbox\\Apps\\RL\\";
     private static String name = "ddqncartpole.dl4j";
+    private static String benchmark = "ddqn_bench.csv";
     JFrame f = new JFrame();
     int stateSpace = 0;
     Random rand = new Random(123);
+    ArrayList<Double> rewardsList = new ArrayList<>();
+    ArrayList<Double> framesList = new ArrayList<>();
 
 
     public static void main(String[] args){
@@ -92,12 +98,11 @@ public class DDQN {
         }
 
 
-        graph =  ddqn.train(50, 2000, 8, 100, .99, .9, 1000, graph );
+        graph =  ddqn.train(10, 10000, 8, 100, .99, .9, 1000, graph );
 
+        Display.plotSimpleSingle(save+benchmark, "DDQN CARTPOLE");
 
-
-
-        ddqn.test(graph);
+        //ddqn.test(graph);
 
 
     }
@@ -137,6 +142,8 @@ public class DDQN {
         INDArray inout = null;
         boolean done = true;
         int trajReward = 0;
+        int framecount = 0;
+        boolean maxReached = false;
 
         //epochs
         for (int i = 0; i < epochs; i++) {
@@ -151,8 +158,16 @@ public class DDQN {
                 if (done) {
                     sp = newGym.reset();
                     inout = sp.getObservation(); // TODO: 8/27/2020 difference frames or multi frame
+                    rewardsList.add((double ) trajReward);
+                    framesList.add((double) framecount);
                     System.out.println("Epsilon: " + epochEpsi + "  Rewards: " + trajReward);
                     trajReward = 0;
+                    maxReached = checkMaxReached(1, 500);
+                    if (maxReached)
+                    {
+                        System.out.println("max1");
+                        break;
+                    }
                 }
 
                 //get networks reward estimate for each action
@@ -198,11 +213,24 @@ public class DDQN {
                 }
 
                 count += 1;
+                framecount++;
 
             }
-            saveNet(network); //save our network
+            //saveNet(network); //save our network
             System.out.println("Epoch: " + i);
+
+            if (maxReached)
+            {
+                System.out.println("max2");
+                break;
+            }
         }
+
+        ArrayList<ArrayList<Double>> rewardsatFrame = new ArrayList<>();
+        rewardsatFrame.add(framesList);
+        rewardsatFrame.add(rewardsList);
+        FileManager.saveBenchMark(rewardsatFrame, save+benchmark);
+
 
 
         return network;
@@ -211,6 +239,23 @@ public class DDQN {
 
 
 
+    public boolean checkMaxReached(int req, int max)
+    {
+        if (rewardsList.size() < req) return false;
+
+        int index = rewardsList.size() - req;
+
+        boolean complete = true;
+
+        for (int i = 0; i < req; i++) {
+            if (rewardsList.get(index) < max){
+                complete = false;
+            }
+            index++;
+        }
+
+        return complete;
+    }
 
 
     public void performFit(List<DDQN.Replay> replays, int batchSize, double gamma, ComputationGraph net, ComputationGraph target)
